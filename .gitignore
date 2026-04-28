@@ -1,0 +1,14 @@
+# Node
+node_modules/
+.next/
+.pnpm-store/
+
+# Python
+apps/ml/venv/
+__pycache__/
+*.pyc
+.env
+
+# Misc
+.DS_Store
+*.log
