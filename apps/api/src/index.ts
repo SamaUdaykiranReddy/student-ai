@@ -3,14 +3,24 @@ import cors from "cors";
 import dotenv from "dotenv";
 import "./db";
 import studentRoutes from "./routes/students.js";
+import predictRoutes from "./routes/predict.js";
+import engagementRoutes from "./routes/engagement.js";
+import assessmentRoutes from "./routes/assessments.js";
+
 dotenv.config({ path: "../../.env" });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5010;
 
 app.use(cors());
 app.use(express.json());
+app.post("/api/engagement-test", async (req, res) => {
+  res.json({ received: req.body });
+});
 app.use("/api/students", studentRoutes);
+app.use("/api/predict", predictRoutes);
+app.use("/api/engagement", engagementRoutes);
+app.use("/api/assessments", assessmentRoutes);
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
@@ -19,6 +29,9 @@ app.get("/health", (req, res) => {
   });
 });
 
+console.log(
+  "Routes registered: /api/students, /api/predict, /api/engagement, /api/assessments",
+);
 app.listen(PORT, () => {
   console.log(`🚀 API running on http://localhost:${PORT}`);
 });

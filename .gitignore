@@ -9,6 +9,11 @@ __pycache__/
 *.pyc
 .env
 
+# ML generated files
+apps/ml/mlruns/
+apps/ml/models/
+apps/ml/data/
+
 # Misc
 .DS_Store
 *.log

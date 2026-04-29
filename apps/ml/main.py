@@ -1,0 +1,67 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
+import pickle
+import pandas as pd
+import numpy as np
+import uvicorn
+
+app = FastAPI(title="Student Risk ML Service")
+
+with open("models/model.pkl", "rb") as f:
+    model = pickle.load(f)
+with open("models/explainer.pkl", "rb") as f:
+    explainer = pickle.load(f)
+with open("models/feature_cols.pkl", "rb") as f:
+    feature_cols = pickle.load(f)
+
+class StudentFeatures(BaseModel):
+    avg_logins: float
+    avg_forum_posts: float
+    avg_video_minutes: float
+    avg_submissions: float
+    total_logins: float
+    login_trend: float
+    avg_score: float
+    min_score: float
+    missed_assignments: float
+    submission_rate: float
+    gender_enc: int
+    disability_enc: int
+    age_enc: int
+    edu_enc: int
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "message": "ML service is running"}
+
+@app.post("/predict")
+def predict(features: StudentFeatures):
+    data = pd.DataFrame([features.model_dump()])
+    data = data[feature_cols].fillna(0)
+
+    risk_score = float(model.predict_proba(data)[0][1])
+    prediction = int(model.predict(data)[0])
+
+    shap_values = explainer.shap_values(data)[0]
+    shap_factors = sorted(
+        zip(feature_cols, shap_values),
+        key=lambda x: abs(x[1]),
+        reverse=True
+    )[:3]
+
+    top_factors = [
+        {"feature": f, "impact": round(float(v), 4)}
+        for f, v in shap_factors
+    ]
+
+    risk_label = "high" if risk_score >= 0.7 else "medium" if risk_score >= 0.4 else "low"
+
+    return {
+        "risk_score": round(risk_score, 4),
+        "risk_label": risk_label,
+        "at_risk": bool(prediction),
+        "top_factors": top_factors
+    }
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
