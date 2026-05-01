@@ -17,7 +17,7 @@ risk of failing 4 weeks before it happens. It shows instructors:
 
 ### 1. Infrastructure (docker-compose.yml)
 Two services running in Docker:
-
+ 
 **PostgreSQL (port 5432)**
 - Our main database
 - Stores all student data permanently

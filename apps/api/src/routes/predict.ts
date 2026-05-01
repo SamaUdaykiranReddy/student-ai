@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
 import pool from "../db.js";
+import redisClient from "../cache.js";
+import { generateSuggestion } from "../services/suggestions.js";
 
 const router = Router();
 
@@ -7,6 +9,15 @@ router.post("/:studentId", async (req: Request, res: Response) => {
   const { studentId } = req.params;
 
   try {
+    const cacheKey = `prediction:${studentId}`;
+    const cached = await redisClient.get(cacheKey);
+
+    if (cached) {
+      console.log(`Cache hit for student ${studentId}`);
+      res.json({ ...JSON.parse(cached), cached: true });
+      return;
+    }
+
     const engResult = await pool.query(
       `SELECT 
         AVG(login_count) as avg_logins,
@@ -16,7 +27,7 @@ router.post("/:studentId", async (req: Request, res: Response) => {
         SUM(login_count) as total_logins,
         MAX(login_count) - MIN(login_count) as login_trend
        FROM engagement WHERE student_id = $1`,
-      [studentId]
+      [studentId],
     );
 
     const asmResult = await pool.query(
@@ -26,12 +37,11 @@ router.post("/:studentId", async (req: Request, res: Response) => {
         COUNT(*) FILTER (WHERE submitted = false) as missed_assignments,
         AVG(CASE WHEN submitted THEN 1 ELSE 0 END) as submission_rate
        FROM assessments WHERE student_id = $1`,
-      [studentId]
+      [studentId],
     );
-
     const studentResult = await pool.query(
-      `SELECT gender, disability FROM students WHERE id = $1`,
-      [studentId]
+      `SELECT gender, disability, name FROM students WHERE id = $1`,
+      [studentId],
     );
 
     if (studentResult.rows.length === 0) {
@@ -60,16 +70,13 @@ router.post("/:studentId", async (req: Request, res: Response) => {
       edu_enc: 0,
     };
 
-    const mlResponse = await fetch(
-      `${process.env.ML_SERVICE_URL}/predict`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(features),
-      }
-    );
+    const mlResponse = await fetch(`${process.env.ML_SERVICE_URL}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(features),
+    });
 
-    const prediction = await mlResponse.json() as {
+    const prediction = (await mlResponse.json()) as {
       risk_score: number;
       risk_label: string;
       at_risk: boolean;
@@ -86,14 +93,26 @@ router.post("/:studentId", async (req: Request, res: Response) => {
         prediction.risk_score,
         prediction.risk_label,
         JSON.stringify(prediction.top_factors),
-      ]
+      ],
     );
 
-    res.json({
+    const suggestion = await generateSuggestion(
+      studentResult.rows[0].name || "this student",
+      prediction.risk_score,
+      prediction.risk_label,
+      prediction.top_factors,
+    );
+    console.log("Generated suggestion:", suggestion);
+    const result = {
       student_id: studentId,
       ...prediction,
-    });
+      suggestion,
+      cached: false,
+    };
 
+    await redisClient.setEx(cacheKey, 3600, JSON.stringify(result));
+
+    res.json(result);
   } catch (err) {
     console.error("Prediction error:", err);
     res.status(500).json({ error: "Prediction failed", details: String(err) });
