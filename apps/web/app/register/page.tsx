@@ -1,44 +1,38 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import api from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import { GraduationCap } from "lucide-react";
 import Link from "next/link";
-export default function LoginPage() {
+
+export default function RegisterPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [apiStatus, setApiStatus] = useState<"checking" | "online" | "offline">("checking");
   const { login } = useAuthStore();
   const router = useRouter();
 
-  useEffect(() => {
-    api.get("/health")
-      .then(() => setApiStatus("online"))
-      .catch(() => setApiStatus("offline"));
-  }, []);
-
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const res = await api.post("/api/auth/login", { email, password });
+      const res = await api.post("/api/auth/register", {
+        name,
+        email,
+        password,
+        role: "instructor",
+      });
       login(res.data.instructor, res.data.token);
       router.push("/dashboard");
     } catch (err) {
-      setError("Invalid email or password");
+      setError("Registration failed. Email may already be in use.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const statusColor = {
-    checking: "bg-yellow-400",
-    online: "bg-green-400",
-    offline: "bg-red-400",
   };
 
   return (
@@ -52,13 +46,13 @@ export default function LoginPage() {
             Student AI
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
-            Early warning system for instructors
+            Create your instructor account
           </p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6 mb-4">
           <h2 className="text-base font-medium text-gray-900 dark:text-white mb-5">
-            Sign in to your account
+            Register
           </h2>
 
           {error && (
@@ -67,7 +61,20 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">
+                Full name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                placeholder="Professor Smith"
+                required
+              />
+            </div>
             <div>
               <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1.5">
                 Email address
@@ -99,41 +106,20 @@ export default function LoginPage() {
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium py-2.5 rounded-xl transition-colors"
             >
-              {loading ? "Signing in..." : "Sign in →"}
+              {loading ? "Creating account..." : "Create account →"}
             </button>
           </form>
         </div>
-<p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
-  Don&apos;t have an account?{" "}
-  <Link href="/register" className="text-blue-600 dark:text-blue-400 hover:underline">
-    Register
-  </Link>
-</p>
-        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 px-5 py-4">
-          <p className="text-xs text-gray-400 font-medium mb-3 uppercase tracking-wide">
-            System Status
-          </p>
-          <div className="flex gap-6">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${statusColor[apiStatus]}`} />
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                API {apiStatus}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-400" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                ML model ready
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-400" />
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                DB connected
-              </span>
-            </div>
-          </div>
-        </div>
+
+        <p className="text-center text-sm text-gray-500 dark:text-gray-400">
+          Already have an account?{" "}
+          <Link
+            href="/"
+            className="text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Sign in
+          </Link>
+        </p>
       </div>
     </div>
   );

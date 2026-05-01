@@ -8,6 +8,8 @@ import engagementRoutes from "./routes/engagement.js";
 import assessmentRoutes from "./routes/assessments.js";
 import authRoutes from "./routes/auth.js";
 import "./cache";
+import uploadRoutes from "./routes/upload.js";
+ 
  
 
 dotenv.config({ path: "../../.env" });
@@ -25,6 +27,7 @@ app.use("/api/predict", predictRoutes);
 app.use("/api/engagement", engagementRoutes);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/upload", uploadRoutes);
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
@@ -38,6 +41,9 @@ console.log(
 );
 console.log(
   "Routes registered: /api/students, /api/predict, /api/engagement, /api/assessments, /api/auth",
+);
+console.log(
+  "Routes registered: /api/students, /api/predict, /api/engagement, /api/assessments, /api/auth, /api/upload",
 );
 app.listen(PORT, () => {
   console.log(`🚀 API running on http://localhost:${PORT}`);
