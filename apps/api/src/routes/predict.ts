@@ -40,7 +40,7 @@ router.post("/:studentId", async (req: Request, res: Response) => {
       [studentId],
     );
     const studentResult = await pool.query(
-      `SELECT gender, disability, name FROM students WHERE id = $1`,
+      `SELECT gender, disability, name, cohort FROM students WHERE id = $1`,
       [studentId],
     );
 
@@ -96,12 +96,17 @@ router.post("/:studentId", async (req: Request, res: Response) => {
       ],
     );
 
-    const suggestion = await generateSuggestion(
-      studentResult.rows[0].name || "this student",
-      prediction.risk_score,
-      prediction.risk_label,
-      prediction.top_factors,
-    );
+    const suggestion = await generateSuggestion({
+      name: studentResult.rows[0].name || "this student",
+      cohort: studentResult.rows[0].cohort || "unknown",
+      riskScore: prediction.risk_score,
+      riskLabel: prediction.risk_label,
+      topFactors: prediction.top_factors,
+      avgScore: parseFloat(asm.avg_score) || 0,
+      missedAssignments: parseInt(asm.missed_assignments) || 0,
+      avgLogins: parseFloat(eng.avg_logins) || 0,
+      weekNumber: 4,
+    });
     console.log("Generated suggestion:", suggestion);
     const result = {
       student_id: studentId,
