@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/api";
@@ -10,6 +11,7 @@ import {
   LogOut,
   GraduationCap,
   RefreshCw,
+  Upload,
 } from "lucide-react";
 import {
   BarChart,
@@ -49,6 +51,8 @@ export default function DashboardPage() {
   const [students, setStudents] = useState<StudentWithPrediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<StudentWithPrediction | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<any>(null);
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -67,7 +71,7 @@ export default function DashboardPage() {
       router.push("/");
       return;
     }
-    fetchStudents;
+    void fetchStudents();
   }, [instructor]);
 
   const getPrediction = async (student: StudentWithPrediction) => {
@@ -114,7 +118,25 @@ export default function DashboardPage() {
     (s) => s.prediction?.risk_label === "medium",
   ).length;
   const analyzed = students.filter((s) => s.prediction).length;
-
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadResult(null);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await api.post("/api/upload/csv", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setUploadResult(res.data.summary);
+      await fetchStudents();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
@@ -185,7 +207,77 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
-
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-medium text-gray-900 dark:text-white text-sm">
+                Upload Student Data
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Upload a CSV exported from your LMS
+              </p>
+            </div>
+            <label
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium cursor-pointer transition-colors ${
+                uploading
+                  ? "bg-gray-100 text-gray-400"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
+            >
+              <Upload className="w-4 h-4" />
+              {uploading ? "Uploading..." : "Upload CSV"}
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleFileUpload}
+                disabled={uploading}
+              />
+            </label>
+          </div>
+          {uploadResult && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+              <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
+                Upload successful!
+              </p>
+              <div className="grid grid-cols-4 gap-4 text-center">
+                <div>
+                  <p className="text-xl font-semibold text-green-700">
+                    {uploadResult.total_rows}
+                  </p>
+                  <p className="text-xs text-gray-500">Rows</p>
+                </div>
+                <div>
+                  <p className="text-xl font-semibold text-green-700">
+                    {uploadResult.students_created}
+                  </p>
+                  <p className="text-xs text-gray-500">Students added</p>
+                </div>
+                <div>
+                  <p className="text-xl font-semibold text-green-700">
+                    {uploadResult.engagement_logged}
+                  </p>
+                  <p className="text-xs text-gray-500">Engagement</p>
+                </div>
+                <div>
+                  <p className="text-xl font-semibold text-green-700">
+                    {uploadResult.errors}
+                  </p>
+                  <p className="text-xs text-gray-500">Errors</p>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+            <p className="text-xs text-gray-500 font-medium mb-1">
+              Required CSV format:
+            </p>
+            <p className="text-xs font-mono text-gray-400">
+              name, email, cohort, gender, week, login_count, forum_posts,
+              video_watch_minutes, assignment_submissions, score, submitted
+            </p>
+          </div>
+        </div>
         <div className="grid grid-cols-3 gap-6">
           <div className="col-span-2 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
             <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
