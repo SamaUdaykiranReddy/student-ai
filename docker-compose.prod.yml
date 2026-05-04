@@ -1,0 +1,65 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: student_ai_postgres
+    environment:
+      POSTGRES_USER: student_ai
+      POSTGRES_PASSWORD: student_ai_pass
+      POSTGRES_DB: student_ai_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: student_ai_redis
+    restart: unless-stopped
+
+  ml:
+    build:
+      context: ./apps/ml
+      dockerfile: Dockerfile
+    container_name: student_ai_ml
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: student_ai_api
+    ports:
+      - "5010:5010"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=student_ai
+      - POSTGRES_PASSWORD=student_ai_pass
+      - POSTGRES_DB=student_ai_db
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=supersecretjwtkey_changethisinproduction
+      - ML_SERVICE_URL=http://ml:8000
+      - PORT=5010
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      - postgres
+      - redis
+      - ml
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://54.86.60.216:5010
+    container_name: student_ai_web
+    ports:
+      - "3001:3001"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
