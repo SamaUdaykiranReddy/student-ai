@@ -9,10 +9,9 @@ const router = Router();
 router.post("/login", async (req: Request, res: Response) => {
   const { email, password } = req.body;
   try {
-    const result = await pool.query(
-      "SELECT * FROM students WHERE email = $1",
-      [email]
-    );
+    const result = await pool.query("SELECT * FROM students WHERE email = $1", [
+      email,
+    ]);
     if (result.rows.length === 0) {
       res.status(401).json({ error: "Invalid credentials" });
       return;
@@ -33,7 +32,7 @@ router.post("/login", async (req: Request, res: Response) => {
     const token = jwt.sign(
       { id: student.id, role: "student" },
       process.env.JWT_SECRET as string,
-      { expiresIn: "7d" }
+      { expiresIn: "7d" },
     );
 
     res.json({
@@ -72,25 +71,25 @@ router.get("/me", async (req: Request, res: Response) => {
     // Get student profile
     const studentResult = await pool.query(
       "SELECT id, name, email, cohort, enrolled_at FROM students WHERE id = $1",
-      [studentId]
+      [studentId],
     );
 
     // Get latest risk score
     const riskResult = await pool.query(
-      "SELECT * FROM risk_scores WHERE student_id = $1 ORDER BY created_at DESC LIMIT 1",
-      [studentId]
+      "SELECT * FROM risk_scores WHERE student_id = $1 ORDER BY predicted_at DESC LIMIT 1",
+      [studentId],
     );
 
     // Get engagement stats
     const engagementResult = await pool.query(
-      "SELECT * FROM engagement WHERE student_id = $1 ORDER BY created_at DESC LIMIT 1",
-      [studentId]
+      "SELECT * FROM engagement WHERE student_id = $1 ORDER BY recorded_at DESC LIMIT 1",
+      [studentId],
     );
 
     // Get assessments
     const assessmentResult = await pool.query(
-      "SELECT * FROM assessments WHERE student_id = $1 ORDER BY created_at DESC",
-      [studentId]
+      "SELECT * FROM assessments WHERE student_id = $1 ORDER BY submitted_at DESC",
+      [studentId],
     );
 
     res.json({
@@ -112,7 +111,7 @@ router.post("/set-password", async (req: Request, res: Response) => {
     const hashed = await bcrypt.hash(password, 10);
     const result = await pool.query(
       "UPDATE students SET password_hash = $1 WHERE email = $2 RETURNING id, name, email",
-      [hashed, email]
+      [hashed, email],
     );
     if (result.rows.length === 0) {
       res.status(404).json({ error: "Student not found" });
