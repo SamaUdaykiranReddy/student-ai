@@ -4,7 +4,6 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const router = Router();
-
 // Student Login
 router.post("/login", async (req: Request, res: Response) => {
   const { email, password } = req.body;
@@ -27,6 +26,32 @@ router.post("/login", async (req: Request, res: Response) => {
     if (!valid) {
       res.status(401).json({ error: "Invalid credentials" });
       return;
+    }
+
+    // Auto-track login
+    const enrolledAt = new Date(student.enrolled_at);
+    const currentWeek = Math.max(
+      1,
+      Math.ceil(
+        (Date.now() - enrolledAt.getTime()) / (7 * 24 * 60 * 60 * 1000),
+      ),
+    );
+
+    const existing = await pool.query(
+      "SELECT id FROM engagement WHERE student_id = $1 AND week = $2",
+      [student.id, currentWeek],
+    );
+
+    if (existing.rows.length > 0) {
+      await pool.query(
+        "UPDATE engagement SET login_count = login_count + 1 WHERE student_id = $1 AND week = $2",
+        [student.id, currentWeek],
+      );
+    } else {
+      await pool.query(
+        "INSERT INTO engagement (student_id, week, login_count) VALUES ($1, $2, 1)",
+        [student.id, currentWeek],
+      );
     }
 
     const token = jwt.sign(
@@ -120,6 +145,7 @@ router.post("/set-password", async (req: Request, res: Response) => {
     res.json({ message: "Password set successfully", student: result.rows[0] });
   } catch (err) {
     console.error(err);
+
     res.status(500).json({ error: "Failed to set password" });
   }
 });
