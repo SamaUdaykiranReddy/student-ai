@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useStudentAuthStore } from "../../store/studentAuthStore";
+import { useStudentAuthStore } from "../../../store/studentAuthStore";
 import { GraduationCap, LogOut, ArrowLeft } from "lucide-react";
 import PostList from "./components/PostList";
 import NewPostForm from "./components/NewPostForm";
