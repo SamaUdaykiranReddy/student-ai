@@ -77,6 +77,12 @@ export default function StudentDashboardPage() {
               <LogOut className="w-4 h-4" />
               Sign out
             </button>
+            <button
+              onClick={() => router.push("/student/forum")}
+              className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              Forum
+            </button>
           </div>
         </div>
       </nav>
