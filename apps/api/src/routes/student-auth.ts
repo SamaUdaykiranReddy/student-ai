@@ -149,5 +149,158 @@ router.post("/set-password", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to set password" });
   }
 });
+// Log forum post
+router.post("/activity/forum", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    res.status(401).json({ error: "No token" });
+    return;
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+      id: string;
+    };
+    const week = Math.max(
+      1,
+      Math.ceil(
+        (Date.now() -
+          new Date(
+            (
+              await pool.query(
+                "SELECT enrolled_at FROM students WHERE id = $1",
+                [decoded.id],
+              )
+            ).rows[0].enrolled_at,
+          ).getTime()) /
+          (7 * 24 * 60 * 60 * 1000),
+      ),
+    );
+    const existing = await pool.query(
+      "SELECT id FROM engagement WHERE student_id = $1 AND week = $2",
+      [decoded.id, week],
+    );
+    if (existing.rows.length > 0) {
+      await pool.query(
+        "UPDATE engagement SET forum_posts = forum_posts + 1 WHERE student_id = $1 AND week = $2",
+        [decoded.id, week],
+      );
+    } else {
+      await pool.query(
+        "INSERT INTO engagement (student_id, week, forum_posts) VALUES ($1, $2, 1)",
+        [decoded.id, week],
+      );
+    }
+    res.json({ message: "Forum post logged" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed" });
+  }
+});
 
+// Log video watch
+router.post("/activity/video", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    res.status(401).json({ error: "No token" });
+    return;
+  }
+  const token = authHeader.split(" ")[1];
+  const { minutes } = req.body;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+      id: string;
+    };
+    const week = Math.max(
+      1,
+      Math.ceil(
+        (Date.now() -
+          new Date(
+            (
+              await pool.query(
+                "SELECT enrolled_at FROM students WHERE id = $1",
+                [decoded.id],
+              )
+            ).rows[0].enrolled_at,
+          ).getTime()) /
+          (7 * 24 * 60 * 60 * 1000),
+      ),
+    );
+    const existing = await pool.query(
+      "SELECT id FROM engagement WHERE student_id = $1 AND week = $2",
+      [decoded.id, week],
+    );
+    if (existing.rows.length > 0) {
+      await pool.query(
+        "UPDATE engagement SET video_watch_minutes = video_watch_minutes + $1 WHERE student_id = $2 AND week = $3",
+        [minutes, decoded.id, week],
+      );
+    } else {
+      await pool.query(
+        "INSERT INTO engagement (student_id, week, video_watch_minutes) VALUES ($1, $2, $3)",
+        [decoded.id, week, minutes],
+      );
+    }
+    res.json({ message: "Video watch logged" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed" });
+  }
+});
+
+// Submit assignment
+router.post("/activity/assignment", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    res.status(401).json({ error: "No token" });
+    return;
+  }
+  const token = authHeader.split(" ")[1];
+  const { score } = req.body;
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+      id: string;
+    };
+    const week = Math.max(
+      1,
+      Math.ceil(
+        (Date.now() -
+          new Date(
+            (
+              await pool.query(
+                "SELECT enrolled_at FROM students WHERE id = $1",
+                [decoded.id],
+              )
+            ).rows[0].enrolled_at,
+          ).getTime()) /
+          (7 * 24 * 60 * 60 * 1000),
+      ),
+    );
+    // Add to assessments
+    await pool.query(
+      "INSERT INTO assessments (student_id, week, score, submitted) VALUES ($1, $2, $3, true)",
+      [decoded.id, week, score],
+    );
+    // Update engagement
+    const existing = await pool.query(
+      "SELECT id FROM engagement WHERE student_id = $1 AND week = $2",
+      [decoded.id, week],
+    );
+    if (existing.rows.length > 0) {
+      await pool.query(
+        "UPDATE engagement SET assignment_submissions = assignment_submissions + 1 WHERE student_id = $1 AND week = $2",
+        [decoded.id, week],
+      );
+    } else {
+      await pool.query(
+        "INSERT INTO engagement (student_id, week, assignment_submissions) VALUES ($1, $2, 1)",
+        [decoded.id, week],
+      );
+    }
+    res.json({ message: "Assignment submitted" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed" });
+  }
+});
 export default router;
