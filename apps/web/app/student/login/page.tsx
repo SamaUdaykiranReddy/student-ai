@@ -20,12 +20,13 @@ export default function StudentLoginPage() {
     try {
       const res = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5010"}/api/student-auth/login`,
-        { email, password }
+        { email, password },
       );
       login(res.data.student, res.data.token);
       router.push("/student/dashboard");
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Login failed");
+    } catch (err) {
+      const error = err as { response?: { data?: { error?: string } } };
+      setError(error.response?.data?.error || "Login failed");
     } finally {
       setLoading(false);
     }
@@ -38,8 +39,12 @@ export default function StudentLoginPage() {
           <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <GraduationCap className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Student Portal</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Sign in to view your progress</p>
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            Student Portal
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+            Sign in to view your progress
+          </p>
         </div>
         <form
           onSubmit={handleLogin}
@@ -83,6 +88,15 @@ export default function StudentLoginPage() {
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>
+          <p className="text-center text-sm text-gray-500">
+            Don&apos have an account?{" "}
+            <a
+              href="/student/register"
+              className="text-blue-600 hover:underline"
+            >
+              Sign up
+            </a>
+          </p>
         </form>
       </div>
     </div>
