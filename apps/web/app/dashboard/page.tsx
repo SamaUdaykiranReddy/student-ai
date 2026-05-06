@@ -52,26 +52,38 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<StudentWithPrediction | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<any>(null);
-
-  const fetchStudents = async () => {
+  const [uploadResult, setUploadResult] = useState<Record<
+    string,
+    number
+  > | null>(null);
+  const fetchStudents = () => {
     setLoading(true);
-    try {
-      const res = await api.get("/api/students");
-      setStudents(res.data.students);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5010"}/api/students`,
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      },
+    )
+      .then((res) => res.json())
+      .then((json) => setStudents(json.students))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   };
-
   useEffect(() => {
     if (!instructor) {
       router.push("/");
       return;
     }
-    void fetchStudents();
+    fetch(
+      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5010"}/api/students`,
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      },
+    )
+      .then((res) => res.json())
+      .then((json) => setStudents(json.students))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   }, [instructor]);
 
   const getPrediction = async (student: StudentWithPrediction) => {
