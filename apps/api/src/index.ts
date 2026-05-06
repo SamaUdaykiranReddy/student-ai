@@ -9,6 +9,7 @@ import assessmentRoutes from "./routes/assessments.js";
 import authRoutes from "./routes/auth.js";
 import "./cache";
 import uploadRoutes from "./routes/upload.js";
+import studentAuthRoutes from "./routes/student-auth.js";
  
  
 
@@ -28,6 +29,7 @@ app.use("/api/engagement", engagementRoutes);
 app.use("/api/assessments", assessmentRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/student-auth", studentAuthRoutes);
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
