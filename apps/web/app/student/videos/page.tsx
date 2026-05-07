@@ -1,14 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useStudentAuthStore } from "../../../store/studentAuthStore";
-import {
-  GraduationCap,
-  LogOut,
-  ArrowLeft,
-  Play,
-  CheckCircle,
-} from "lucide-react";
+import { useStudentAuthStore } from "../../store/studentAuthStore";
+import { GraduationCap, LogOut, ArrowLeft, CheckCircle } from "lucide-react";
 
 interface Video {
   id: string;
@@ -20,19 +14,43 @@ interface Video {
   created_at: string;
 }
 
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
+
 export default function VideosPage() {
   const { student, token, logout } = useStudentAuthStore();
   const router = useRouter();
   const [videos, setVideos] = useState<Video[]>([]);
   const [watched, setWatched] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Video | null>(null);
+  const [canMarkWatched, setCanMarkWatched] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [ytReady, setYtReady] = useState(false);
+  const playerRef = useRef<any>(null);
+  const intervalRef = useRef<any>(null);
 
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5010";
   const getToken = () => {
     if (typeof window === "undefined") return "";
     return localStorage.getItem("student_token") || token || "";
   };
+
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.YT) {
+      setYtReady(true);
+      return;
+    }
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+    window.onYouTubeIframeAPIReady = () => setYtReady(true);
+  }, []);
 
   useEffect(() => {
     if (
@@ -51,12 +69,61 @@ export default function VideosPage() {
       .catch(console.error);
   }, []);
 
-  const handleWatch = (video: Video) => {
-    setSelected(video);
+  const getYouTubeId = (url: string) => {
+    if (url.includes("youtube.com/watch"))
+      return url.split("v=")[1]?.split("&")[0];
+    if (url.includes("youtu.be/"))
+      return url.split("youtu.be/")[1]?.split("?")[0];
+    return null;
   };
 
+  const handleWatch = (video: Video) => {
+    setSelected(video);
+    setCanMarkWatched(false);
+    if (playerRef.current) {
+      playerRef.current.destroy();
+      playerRef.current = null;
+    }
+    if (intervalRef.current) clearInterval(intervalRef.current);
+  };
+
+  useEffect(() => {
+    if (!selected || !ytReady) return;
+    const ytId = getYouTubeId(selected.url);
+    if (!ytId) return;
+
+    // Small delay to ensure div is rendered
+    setTimeout(() => {
+      playerRef.current = new window.YT.Player("yt-player", {
+        videoId: ytId,
+        playerVars: { autoplay: 1, modestbranding: 1 },
+        events: {
+          onStateChange: (event: any) => {
+            // YT.PlayerState.PLAYING = 1
+            if (event.data === 1) {
+              intervalRef.current = setInterval(() => {
+                const duration = playerRef.current?.getDuration?.() || 0;
+                const currentTime = playerRef.current?.getCurrentTime?.() || 0;
+                if (duration > 0 && duration - currentTime <= 10) {
+                  setCanMarkWatched(true);
+                  clearInterval(intervalRef.current);
+                }
+              }, 1000);
+            } else {
+              clearInterval(intervalRef.current);
+            }
+          },
+        },
+      });
+    }, 500);
+
+    return () => {
+      clearInterval(intervalRef.current);
+    };
+  }, [selected, ytReady]);
+
   const markAsWatched = (videoId: string) => {
-    if (watched.has(videoId)) return;
+    if (watched.has(videoId) || !canMarkWatched) return;
     setLoading(true);
     fetch(`${API}/api/videos/${videoId}/watch`, {
       method: "POST",
@@ -67,22 +134,6 @@ export default function VideosPage() {
       )
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
-
-  const getEmbedUrl = (url: string) => {
-    if (url.includes("youtube.com/watch")) {
-      const videoId = url.split("v=")[1]?.split("&")[0];
-      return `https://www.youtube.com/embed/${videoId}`;
-    }
-    if (url.includes("youtu.be/")) {
-      const videoId = url.split("youtu.be/")[1]?.split("?")[0];
-      return `https://www.youtube.com/embed/${videoId}`;
-    }
-    if (url.includes("vimeo.com/")) {
-      const videoId = url.split("vimeo.com/")[1];
-      return `https://player.vimeo.com/video/${videoId}`;
-    }
-    return url;
   };
 
   const handleLogout = () => {
@@ -141,44 +192,46 @@ export default function VideosPage() {
                 {selected.title}
               </h2>
               <button
-                onClick={() => setSelected(null)}
+                onClick={() => {
+                  setSelected(null);
+                  setCanMarkWatched(false);
+                  if (playerRef.current) playerRef.current.destroy();
+                }}
                 className="text-xs text-gray-400 hover:text-gray-600"
               >
                 Close
               </button>
             </div>
             <div
-              className="relative w-full"
-              style={{ paddingBottom: "56.25%" }}
-            >
-              <iframe
-                src={getEmbedUrl(selected.url)}
-                className="absolute inset-0 w-full h-full rounded-xl"
-                allowFullScreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              />
-            </div>
+              id="yt-player"
+              className="w-full rounded-xl overflow-hidden"
+              style={{ minHeight: "360px" }}
+            />
             <div className="mt-4 flex items-center justify-between">
               <p className="text-sm text-gray-500">{selected.description}</p>
-              <button
-                onClick={() => markAsWatched(selected.id)}
-                disabled={watched.has(selected.id) || loading}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  watched.has(selected.id)
-                    ? "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400"
-                    : "bg-blue-600 hover:bg-blue-700 text-white"
-                }`}
-              >
-                {watched.has(selected.id) ? (
-                  <>
-                    <CheckCircle className="w-4 h-4" /> Watched!
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4" /> Mark as Watched
-                  </>
+              <div className="flex items-center gap-3">
+                {!canMarkWatched && !watched.has(selected.id) && (
+                  <p className="text-xs text-gray-400">
+                    Watch until the last 10 seconds to mark as watched
+                  </p>
                 )}
-              </button>
+                <button
+                  onClick={() => markAsWatched(selected.id)}
+                  disabled={
+                    !canMarkWatched || watched.has(selected.id) || loading
+                  }
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    watched.has(selected.id)
+                      ? "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400"
+                      : canMarkWatched
+                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  }`}
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  {watched.has(selected.id) ? "Watched!" : "Mark as Watched"}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -205,7 +258,7 @@ export default function VideosPage() {
                     {video.title}
                   </h3>
                   {watched.has(video.id) && (
-                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
                   )}
                 </div>
                 {video.description && (
@@ -219,9 +272,8 @@ export default function VideosPage() {
                   </span>
                   <button
                     onClick={() => handleWatch(video)}
-                    className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                   >
-                    <Play className="w-3 h-3" />
                     Watch
                   </button>
                 </div>
