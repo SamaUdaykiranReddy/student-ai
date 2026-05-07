@@ -11,6 +11,7 @@ import "./cache";
 import uploadRoutes from "./routes/upload.js";
 import studentAuthRoutes from "./routes/student-auth.js";
 import forumRoutes from "./routes/forum.js";
+import videoRoutes from "./routes/videos.js";
  
  
 
@@ -32,6 +33,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/student-auth", studentAuthRoutes);
 app.use("/api/forum", forumRoutes);
+app.use("/api/videos", videoRoutes);
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
