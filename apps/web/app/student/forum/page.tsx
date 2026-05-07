@@ -38,6 +38,15 @@ export default function ForumPage() {
     return localStorage.getItem("student_token") || token || "";
   };
 
+  const fetchPosts = () => {
+    fetch(`${API}/api/forum`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((res) => res.json())
+      .then((json) => setPosts(json.posts || []))
+      .catch(console.error);
+  };
+
   useEffect(() => {
     if (
       typeof window !== "undefined" &&
@@ -49,15 +58,6 @@ export default function ForumPage() {
     }
     fetchPosts();
   }, []);
-
-  const fetchPosts = () => {
-    fetch(`${API}/api/forum`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    })
-      .then((res) => res.json())
-      .then((json) => setPosts(json.posts || []))
-      .catch(console.error);
-  };
 
   const fetchReplies = (postId: string) => {
     fetch(`${API}/api/forum/${postId}`, {
