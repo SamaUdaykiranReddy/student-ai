@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Trash2, Plus, Video } from "lucide-react";
+import { Trash2, Plus, Video, Link, Upload } from "lucide-react";
 import api from "@/lib/api";
 
-interface Video {
+interface VideoItem {
   id: string;
   title: string;
   description: string;
@@ -14,15 +14,17 @@ interface Video {
 }
 
 export default function VideoManager() {
-  const [videos, setVideos] = useState<Video[]>([]);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [uploadType, setUploadType] = useState<"url" | "file">("url");
   const [form, setForm] = useState({
     title: "",
     description: "",
     url: "",
     duration_minutes: "",
   });
+  const [file, setFile] = useState<File | null>(null);
 
   const fetchVideos = () => {
     api
@@ -38,18 +40,54 @@ export default function VideoManager() {
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    api
-      .post("/api/videos", {
-        ...form,
-        duration_minutes: parseInt(form.duration_minutes) || 0,
-      })
-      .then(() => {
-        fetchVideos();
-        setForm({ title: "", description: "", url: "", duration_minutes: "" });
-        setShowForm(false);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+
+    if (uploadType === "url") {
+      api
+        .post("/api/videos", {
+          ...form,
+          duration_minutes: parseInt(form.duration_minutes) || 0,
+        })
+        .then(() => {
+          fetchVideos();
+          setForm({
+            title: "",
+            description: "",
+            url: "",
+            duration_minutes: "",
+          });
+          setShowForm(false);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    } else {
+      if (!file) {
+        setLoading(false);
+        return;
+      }
+      const formData = new FormData();
+      formData.append("video", file);
+      formData.append("title", form.title);
+      formData.append("description", form.description);
+      formData.append("duration_minutes", form.duration_minutes || "0");
+
+      api
+        .post("/api/videos/upload", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+        .then(() => {
+          fetchVideos();
+          setForm({
+            title: "",
+            description: "",
+            url: "",
+            duration_minutes: "",
+          });
+          setFile(null);
+          setShowForm(false);
+        })
+        .catch(console.error)
+        .finally(() => setLoading(false));
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -67,7 +105,7 @@ export default function VideoManager() {
             Course Videos
           </h2>
           <p className="text-xs text-gray-400 mt-0.5">
-            Add YouTube or Vimeo links for students
+            Add YouTube/Vimeo links or upload video files
           </p>
         </div>
         <button
@@ -84,6 +122,32 @@ export default function VideoManager() {
           onSubmit={handleAdd}
           className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 mb-4 space-y-3"
         >
+          {/* Toggle */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setUploadType("url")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                uploadType === "url"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              <Link className="w-3 h-3" /> URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadType("file")}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                uploadType === "file"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+              }`}
+            >
+              <Upload className="w-3 h-3" /> Upload File
+            </button>
+          </div>
+
           <input
             type="text"
             placeholder="Video title"
@@ -92,14 +156,26 @@ export default function VideoManager() {
             required
             className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
           />
-          <input
-            type="url"
-            placeholder="YouTube or Vimeo URL"
-            value={form.url}
-            onChange={(e) => setForm({ ...form, url: e.target.value })}
-            required
-            className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
-          />
+
+          {uploadType === "url" ? (
+            <input
+              type="url"
+              placeholder="YouTube or Vimeo URL"
+              value={form.url}
+              onChange={(e) => setForm({ ...form, url: e.target.value })}
+              required
+              className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
+            />
+          ) : (
+            <input
+              type="file"
+              accept="video/*"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              required
+              className="w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none"
+            />
+          )}
+
           <div className="flex gap-3">
             <input
               type="text"
@@ -120,13 +196,18 @@ export default function VideoManager() {
               className="w-32 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:border-blue-500"
             />
           </div>
+
           <div className="flex gap-2">
             <button
               type="submit"
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
             >
-              {loading ? "Adding..." : "Add Video"}
+              {loading
+                ? "Adding..."
+                : uploadType === "file"
+                  ? "Upload & Add"
+                  : "Add Video"}
             </button>
             <button
               type="button"
