@@ -22,6 +22,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import VideoManager from "./components/VideoManager";
 
 interface Student {
   id: string;
@@ -185,7 +186,7 @@ export default function DashboardPage() {
             Monitor and predict student performance risks
           </p>
         </div>
-
+        <VideoManager />
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
             <div className="flex items-center gap-3 mb-2">
