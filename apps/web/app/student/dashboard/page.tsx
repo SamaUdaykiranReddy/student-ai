@@ -89,6 +89,12 @@ export default function StudentDashboardPage() {
             >
               Videos
             </button>
+            <button
+              onClick={() => router.push("/student/assignments")}
+              className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              Assignments
+            </button>
           </div>
         </div>
       </nav>

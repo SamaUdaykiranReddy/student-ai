@@ -23,6 +23,7 @@ import {
   Cell,
 } from "recharts";
 import VideoManager from "./components/VideoManager";
+import AssignmentManager from "./components/AssignmentManager";
 
 interface Student {
   id: string;
@@ -187,6 +188,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <VideoManager />
+        <AssignmentManager />
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
             <div className="flex items-center gap-3 mb-2">
