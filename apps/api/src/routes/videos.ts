@@ -1,7 +1,8 @@
 import { Router, Request, Response } from "express";
 import pool from "../db.js";
 import jwt from "jsonwebtoken";
-
+import multer from "multer";
+import { uploadToS3 } from "../lib/s3.js";
 const router = Router();
 
 const getInstructorId = (req: Request): string | null => {
@@ -62,6 +63,41 @@ router.post("/", async (req: Request, res: Response) => {
   }
 });
 
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Upload video file (instructor only)
+router.post(
+  "/upload",
+  upload.single("video"),
+  async (req: Request, res: Response) => {
+    const instructorId = getInstructorId(req);
+    if (!instructorId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const { title, description, duration_minutes } = req.body;
+    if (!title || !req.file) {
+      res.status(400).json({ error: "Title and video file required" });
+      return;
+    }
+
+    try {
+      const key = `videos/${Date.now()}-${req.file.originalname.replace(/\s/g, "-")}`;
+      const url = await uploadToS3(key, req.file.buffer, req.file.mimetype);
+
+      const result = await pool.query(
+        `INSERT INTO videos (instructor_id, title, description, url, duration_minutes)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [instructorId, title, description, url, duration_minutes || 0],
+      );
+      res.status(201).json({ video: result.rows[0] });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: "Failed to upload video" });
+    }
+  },
+);
 // Delete video (instructor only)
 router.delete("/:id", async (req: Request, res: Response) => {
   const instructorId = getInstructorId(req);
