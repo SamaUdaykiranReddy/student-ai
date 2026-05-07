@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { useStudentAuthStore } from "../../store/studentAuthStore";
+import { useStudentAuthStore } from "../../../store/studentAuthStore";
 import { GraduationCap, LogOut, ArrowLeft, CheckCircle } from "lucide-react";
 
 interface Video {
