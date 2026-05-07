@@ -1,9 +1,11 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel  
 import pickle
 import pandas as pd
 import numpy as np
 import uvicorn
+import subprocess
+import threading
 
 app = FastAPI(title="Student Risk ML Service")
 
@@ -13,6 +15,11 @@ with open("models/explainer.pkl", "rb") as f:
     explainer = pickle.load(f)
 with open("models/feature_cols.pkl", "rb") as f:
     feature_cols = pickle.load(f)
+
+def start_scheduler():
+    subprocess.Popen(["python", "scheduler.py"])
+
+threading.Thread(target=start_scheduler, daemon=True).start()
 
 class StudentFeatures(BaseModel):
     avg_logins: float
@@ -62,6 +69,31 @@ def predict(features: StudentFeatures):
         "at_risk": bool(prediction),
         "top_factors": top_factors
     }
+
+@app.post("/retrain")
+def retrain():
+    try:
+        result = subprocess.Popen(
+            ["python", "retrain.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        return {"message": "Retraining started in background", "pid": result.pid}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/model/status")
+def model_status():
+    try:
+        with open("models/model.pkl", "rb") as f:
+            m = pickle.load(f)
+        return {
+            "status": "loaded",
+            "n_estimators": m.n_estimators,
+            "features": feature_cols
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

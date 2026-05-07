@@ -16,7 +16,16 @@ interface Video {
 
 declare global {
   interface Window {
-    YT: any;
+    YT: {
+      Player: new (
+        id: string,
+        config: object,
+      ) => {
+        destroy: () => void;
+        getDuration: () => number;
+        getCurrentTime: () => number;
+      };
+    };
     onYouTubeIframeAPIReady: () => void;
   }
 }
@@ -30,8 +39,12 @@ export default function VideosPage() {
   const [canMarkWatched, setCanMarkWatched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ytReady, setYtReady] = useState(false);
-  const playerRef = useRef<any>(null);
-  const intervalRef = useRef<any>(null);
+  const playerRef = useRef<{
+    destroy: () => void;
+    getDuration: () => number;
+    getCurrentTime: () => number;
+  } | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5010";
   const getToken = () => {
@@ -42,14 +55,21 @@ export default function VideosPage() {
   // Load YouTube IFrame API
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.YT) {
-      setYtReady(true);
-      return;
-    }
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
-    window.onYouTubeIframeAPIReady = () => setYtReady(true);
+
+    const checkYT = () => {
+      if (window.YT) {
+        setYtReady(true);
+        return;
+      }
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = () => setYtReady(true);
+    };
+
+    // Small delay to avoid setState in effect
+    const timer = setTimeout(checkYT, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -98,7 +118,7 @@ export default function VideosPage() {
         videoId: ytId,
         playerVars: { autoplay: 1, modestbranding: 1 },
         events: {
-          onStateChange: (event: any) => {
+          onStateChange: (event: { data: number }) => {
             // YT.PlayerState.PLAYING = 1
             if (event.data === 1) {
               intervalRef.current = setInterval(() => {
@@ -106,11 +126,11 @@ export default function VideosPage() {
                 const currentTime = playerRef.current?.getCurrentTime?.() || 0;
                 if (duration > 0 && duration - currentTime <= 10) {
                   setCanMarkWatched(true);
-                  clearInterval(intervalRef.current);
+                  if (intervalRef.current) clearInterval(intervalRef.current);
                 }
               }, 1000);
             } else {
-              clearInterval(intervalRef.current);
+              if (intervalRef.current) clearInterval(intervalRef.current);
             }
           },
         },
@@ -118,7 +138,7 @@ export default function VideosPage() {
     }, 500);
 
     return () => {
-      clearInterval(intervalRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [selected, ytReady]);
 
