@@ -95,6 +95,12 @@ export default function StudentDashboardPage() {
             >
               Assignments
             </button>
+            <button
+              onClick={() => router.push("/student/chat")}
+              className="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              AI Chat
+            </button>
           </div>
         </div>
       </nav>

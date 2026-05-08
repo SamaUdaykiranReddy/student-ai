@@ -6,7 +6,7 @@ import numpy as np
 import uvicorn
 import subprocess
 import threading
-
+from rag import upsert_document, answer_question
 app = FastAPI(title="Student Risk ML Service")
 
 with open("models/model.pkl", "rb") as f:
@@ -94,6 +94,45 @@ def model_status():
         }
     except Exception as e:
         return {"status": "error", "error": str(e)}
+    
+
+class ChatRequest(BaseModel):
+    question: str
+    student_id: str = ""
+    risk_score: float = 0.0
+    avg_score: float = 0.0
+    missed_assignments: int = 0
+
+class IngestRequest(BaseModel):
+    doc_id: str
+    title: str
+    content: str
+    doc_type: str = "course_material"
+
+@app.post("/chat")
+def chat(request: ChatRequest):
+    try:
+        student_context = {
+            "risk_score": request.risk_score,
+            "avg_score": request.avg_score,
+            "missed_assignments": request.missed_assignments
+        }
+        result = answer_question(request.question, student_context)
+        return result
+    except Exception as e:
+        return {"error": str(e), "answer": "Sorry, I couldn't process your question. Please try again."}
+
+@app.post("/ingest")
+def ingest(request: IngestRequest):
+    try:
+        upsert_document(
+            doc_id=request.doc_id,
+            text=request.content,
+            metadata={"title": request.title, "type": request.doc_type}
+        )
+        return {"message": f"Document '{request.title}' ingested successfully"}
+    except Exception as e:
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
