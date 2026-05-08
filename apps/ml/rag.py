@@ -1,7 +1,6 @@
 from pinecone import Pinecone
 from openai import OpenAI
 import os
-import hashlib
 import numpy as np
 
 pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
@@ -14,13 +13,22 @@ INDEX_NAME = "student-ai-courses"
 CHAT_MODEL = "llama-3.1-8b-instant"
 
 def get_embedding(text: str) -> list:
-    """Lightweight deterministic embedding using TF-IDF-like approach"""
-    words = text.lower().split()
+    """Create a consistent embedding using character n-grams"""
+    text = text.lower()
     vector = np.zeros(1536)
+    
+    # Character trigrams
+    for i in range(len(text) - 2):
+        trigram = text[i:i+3]
+        idx = sum(ord(c) * (31 ** j) for j, c in enumerate(trigram)) % 1536
+        vector[idx] += 1.0
+    
+    # Word unigrams with position weighting
+    words = text.split()
     for i, word in enumerate(words):
-        hash_val = int(hashlib.md5(word.encode()).hexdigest(), 16)
-        idx = hash_val % 1536
-        vector[idx] += 1.0 / (i + 1)
+        idx = sum(ord(c) * (31 ** j) for j, c in enumerate(word)) % 1536
+        vector[idx] += 2.0  # words weighted more than trigrams
+    
     norm = np.linalg.norm(vector)
     if norm > 0:
         vector = vector / norm
@@ -51,7 +59,7 @@ def answer_question(question: str, student_context: dict = None) -> dict:
     context_parts = []
     sources = []
     for match in matches:
-        if match.score > 0.1:
+        if match.score > 0.05:  # lower threshold
             context_parts.append(match.metadata.get("text", ""))
             sources.append(match.metadata.get("title", "Unknown source"))
     
