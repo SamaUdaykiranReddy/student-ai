@@ -4,27 +4,23 @@ import os
 
 # Initialize clients
 pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
-openai_client = OpenAI(
+groq_client = OpenAI(
     api_key=os.environ.get("GROQ_API_KEY"),
     base_url="https://api.groq.com/openai/v1"
 )
 
 INDEX_NAME = "student-ai-courses"
-EMBED_MODEL = "text-embedding-3-small"
 CHAT_MODEL = "llama-3.1-8b-instant"
 
 def get_embedding(text: str) -> list:
-    """Get embedding using Groq-compatible embedding model via OpenAI client"""
-    # Use a simple hash-based approach since Groq doesn't support embeddings
-    # We'll use OpenAI's embedding endpoint pattern with a free alternative
-    import hashlib
-    import numpy as np
-    
-    # Create a deterministic 1536-dim vector from text
-    # In production, use a real embedding model
-    hash_bytes = hashlib.sha256(text.encode()).digest()
-    np.random.seed(int.from_bytes(hash_bytes[:4], 'big'))
-    return np.random.normal(0, 1, 1536).tolist()
+    """Get embedding using a sentence transformer model"""
+    from sentence_transformers import SentenceTransformer
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    embedding = model.encode(text).tolist()
+    # Pad or truncate to 1536 dimensions
+    if len(embedding) < 1536:
+        embedding = embedding + [0.0] * (1536 - len(embedding))
+    return embedding[:1536]
 
 def upsert_document(doc_id: str, text: str, metadata: dict) -> None:
     """Store a document in Pinecone"""
@@ -49,20 +45,17 @@ def search_documents(query: str, top_k: int = 3) -> list:
 
 def answer_question(question: str, student_context: dict = None) -> dict:
     """RAG pipeline: search + generate answer"""
-    # Search for relevant documents
     matches = search_documents(question)
     
-    # Build context from matches
     context_parts = []
     sources = []
     for match in matches:
-        if match.score > 0.3:  # relevance threshold
+        if match.score > 0.3:
             context_parts.append(match.metadata.get("text", ""))
             sources.append(match.metadata.get("title", "Unknown source"))
     
     context = "\n\n".join(context_parts) if context_parts else "No specific course materials found."
     
-    # Build student context
     student_info = ""
     if student_context:
         student_info = f"""
@@ -72,15 +65,14 @@ Student context:
 - Missed assignments: {student_context.get('missed_assignments', 'N/A')}
 """
 
-    # Generate answer using Groq
-    response = openai_client.chat.completions.create(
+    response = groq_client.chat.completions.create(
         model=CHAT_MODEL,
         messages=[
             {
                 "role": "system",
                 "content": f"""You are a helpful academic assistant for university students. 
 Answer questions based on the course materials provided.
-Be encouraging and supportive, especially for struggling students.
+Be encouraging and supportive.
 
 Course materials context:
 {context}
