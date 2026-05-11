@@ -11,23 +11,22 @@ def retrain():
 
 
 def run_agent():
-    print(f"[{datetime.now()}] Running AI agent...")
-    subprocess.run(["python", "agent.py"])
+    print(f"[{datetime.now()}] Running LangChain AI agent...")
+    subprocess.run(["python", "langchain_agent.py"])
     print(f"[{datetime.now()}] Agent complete!")
 
 
 # Retrain every Sunday at midnight
 schedule.every().sunday.at("00:00").do(retrain)
 
-# Run agent every hour
+# Run LangChain agent every hour
 schedule.every().hour.do(run_agent)
 
-# Run both immediately on startup
 print("Scheduler started.")
 print("- Retraining: every Sunday at midnight")
-print("- AI Agent: every hour")
+print("- LangChain Agent: every hour")
 
-# Run agent immediately
+# Run agent immediately on startup
 run_agent()
 
 while True:
