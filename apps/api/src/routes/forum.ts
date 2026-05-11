@@ -198,5 +198,23 @@ router.post("/:id/replies", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to create reply" });
   }
 });
+// Delete post (student can delete their own)
+router.delete("/:id", async (req: Request, res: Response) => {
+  const studentId = getStudentId(req);
+  if (!studentId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
 
+  try {
+    await pool.query("DELETE FROM posts WHERE id = $1 AND student_id = $2", [
+      req.params.id,
+      studentId,
+    ]);
+    res.json({ message: "Post deleted" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to delete post" });
+  }
+});
 export default router;

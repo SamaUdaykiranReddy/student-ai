@@ -108,7 +108,17 @@ export default function ForumPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   };
-
+  const handleDelete = (postId: string) => {
+    fetch(`${API}/api/forum/${postId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then(() => {
+        setPosts((prev) => prev.filter((p) => p.id !== postId));
+        if (selectedPost?.id === postId) setSelectedPost(null);
+      })
+      .catch(console.error);
+  };
   const handleLogout = () => {
     logout();
     router.push("/student/login");
@@ -165,6 +175,7 @@ export default function ForumPage() {
               posts={posts}
               onSelect={handleSelectPost}
               selectedId={selectedPost?.id || null}
+              onDelete={handleDelete}
             />
           </div>
           <div>

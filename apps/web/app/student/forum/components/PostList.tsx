@@ -5,6 +5,7 @@ import {
   Meh,
   Frown,
   AlertCircle,
+  Trash2,
 } from "lucide-react";
 
 interface Post {
@@ -22,6 +23,7 @@ interface Props {
   posts: Post[];
   onSelect: (post: Post) => void;
   selectedId: string | null;
+  onDelete: (postId: string) => void;
 }
 
 const SentimentBadge = ({ sentiment }: { sentiment?: string }) => {
@@ -65,7 +67,12 @@ const SentimentBadge = ({ sentiment }: { sentiment?: string }) => {
   );
 };
 
-export default function PostList({ posts, onSelect, selectedId }: Props) {
+export default function PostList({
+  posts,
+  onSelect,
+  selectedId,
+  onDelete,
+}: Props) {
   if (posts.length === 0) {
     return (
       <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-8 text-center">
@@ -88,7 +95,18 @@ export default function PostList({ posts, onSelect, selectedId }: Props) {
             <h3 className="text-sm font-medium text-gray-900 dark:text-white">
               {post.title}
             </h3>
-            <SentimentBadge sentiment={post.sentiment} />
+            <div className="flex items-center gap-2 shrink-0">
+              <SentimentBadge sentiment={post.sentiment} />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(post.id);
+                }}
+                className="text-gray-300 hover:text-red-500 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
           <p className="text-xs text-gray-400 line-clamp-2 mb-3">
             {post.content}
