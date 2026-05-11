@@ -25,6 +25,7 @@ import {
 import VideoManager from "./components/VideoManager";
 import AssignmentManager from "./components/AssignmentManager";
 import AlertsPanel from "./components/AlertsPanel";
+import AgentChat from "./components/AgentChat";
 
 interface Student {
   id: string;
@@ -189,6 +190,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <AlertsPanel />
+        <AgentChat />
         <VideoManager />
         <AssignmentManager />
         <div className="grid grid-cols-3 gap-4 mb-8">
