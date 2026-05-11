@@ -24,6 +24,7 @@ import {
 } from "recharts";
 import VideoManager from "./components/VideoManager";
 import AssignmentManager from "./components/AssignmentManager";
+import AlertsPanel from "./components/AlertsPanel";
 
 interface Student {
   id: string;
@@ -187,6 +188,7 @@ export default function DashboardPage() {
             Monitor and predict student performance risks
           </p>
         </div>
+        <AlertsPanel />
         <VideoManager />
         <AssignmentManager />
         <div className="grid grid-cols-3 gap-4 mb-8">

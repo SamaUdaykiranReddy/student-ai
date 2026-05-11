@@ -34,6 +34,7 @@ export interface DashboardData {
 export function useStudentDashboard(token: string | null) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [studyPlan, setStudyPlan] = useState<string | null>(null);
   const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5010";
 
   const getToken = () => {
@@ -49,6 +50,16 @@ export function useStudentDashboard(token: string | null) {
       .then((json) => setData(json))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
+
+    // Fetch study plan
+    fetch(`${API}/api/alerts/my-plan`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.alert?.study_plan) setStudyPlan(json.alert.study_plan);
+      })
+      .catch(console.error);
   }, []);
 
   const logForumPost = () => {
@@ -129,5 +140,13 @@ export function useStudentDashboard(token: string | null) {
       .catch(console.error);
   };
 
-  return { data, loading, setData, logForumPost, logVideo, submitAssignment };
+  return {
+    data,
+    loading,
+    setData,
+    logForumPost,
+    logVideo,
+    submitAssignment,
+    studyPlan,
+  };
 }

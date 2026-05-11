@@ -8,11 +8,12 @@ import RiskScoreCard from "./components/RiskScoreCard";
 import AssessmentList from "./components/AssessmentList";
 import AIRecommendation from "./components/AIRecommendation";
 import ActivityLogger from "./components/ActivityLogger";
+import StudyPlan from "./components/StudyPlan";
 
 export default function StudentDashboardPage() {
   const { student, token, logout } = useStudentAuthStore();
   const router = useRouter();
-  const { data, loading, logForumPost, logVideo, submitAssignment } =
+  const { data, loading, logForumPost, logVideo, submitAssignment, studyPlan } =
     useStudentDashboard(token);
 
   const handleLogout = () => {
@@ -132,6 +133,7 @@ export default function StudentDashboardPage() {
           onVideoLog={logVideo}
           onAssignmentSubmit={submitAssignment}
         />
+        {studyPlan && <StudyPlan plan={studyPlan} />}
       </main>
     </div>
   );
