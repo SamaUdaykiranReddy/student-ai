@@ -1,4 +1,11 @@
-import { MessageCircle, Clock } from "lucide-react";
+import {
+  MessageCircle,
+  Clock,
+  Smile,
+  Meh,
+  Frown,
+  AlertCircle,
+} from "lucide-react";
 
 interface Post {
   id: string;
@@ -7,6 +14,8 @@ interface Post {
   student_name: string;
   created_at: string;
   reply_count: number;
+  sentiment?: string;
+  sentiment_score?: number;
 }
 
 interface Props {
@@ -14,6 +23,47 @@ interface Props {
   onSelect: (post: Post) => void;
   selectedId: string | null;
 }
+
+const SentimentBadge = ({ sentiment }: { sentiment?: string }) => {
+  if (!sentiment || sentiment === "neutral") return null;
+
+  const config: Record<
+    string,
+    { icon: React.ReactNode; color: string; label: string }
+  > = {
+    positive: {
+      icon: <Smile className="w-3 h-3" />,
+      color: "text-green-500 bg-green-50 dark:bg-green-900/20",
+      label: "Positive",
+    },
+    frustrated: {
+      icon: <Frown className="w-3 h-3" />,
+      color: "text-orange-500 bg-orange-50 dark:bg-orange-900/20",
+      label: "Frustrated",
+    },
+    confused: {
+      icon: <Meh className="w-3 h-3" />,
+      color: "text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20",
+      label: "Confused",
+    },
+    distressed: {
+      icon: <AlertCircle className="w-3 h-3" />,
+      color: "text-red-500 bg-red-50 dark:bg-red-900/20",
+      label: "Distressed",
+    },
+  };
+
+  const c = config[sentiment];
+  if (!c) return null;
+
+  return (
+    <span
+      className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${c.color}`}
+    >
+      {c.icon} {c.label}
+    </span>
+  );
+};
 
 export default function PostList({ posts, onSelect, selectedId }: Props) {
   if (posts.length === 0) {
@@ -34,9 +84,12 @@ export default function PostList({ posts, onSelect, selectedId }: Props) {
           onClick={() => onSelect(post)}
           className={`p-5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${selectedId === post.id ? "bg-blue-50/50 dark:bg-blue-900/10" : ""}`}
         >
-          <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-            {post.title}
-          </h3>
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+              {post.title}
+            </h3>
+            <SentimentBadge sentiment={post.sentiment} />
+          </div>
           <p className="text-xs text-gray-400 line-clamp-2 mb-3">
             {post.content}
           </p>
