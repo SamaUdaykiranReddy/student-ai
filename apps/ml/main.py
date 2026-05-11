@@ -162,5 +162,49 @@ def run_agent_endpoint(request: AgentRequest = AgentRequest()):
         return {"error": str(e), "status": "error"}
 
 
+from drift_detector import check_drift as run_drift_check
+
+
+@app.get("/drift")
+def check_drift():
+    try:
+        run_drift_check()
+
+        import psycopg2
+
+        conn = psycopg2.connect(
+            host=os.environ.get("POSTGRES_HOST", "localhost"),
+            port=int(os.environ.get("POSTGRES_PORT", 5432)),
+            user=os.environ.get("POSTGRES_USER", "student_ai"),
+            password=os.environ.get("POSTGRES_PASSWORD", "student_ai_pass"),
+            database=os.environ.get("POSTGRES_DB", "student_ai_db"),
+        )
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT auc_score, data_size, at_risk_rate, created_at
+            FROM model_metrics
+            ORDER BY created_at DESC
+            LIMIT 5
+        """)
+        metrics = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        return {
+            "status": "ok",
+            "metrics": [
+                {
+                    "auc_score": round(m[0], 4),
+                    "data_size": m[1],
+                    "at_risk_rate": round(m[2], 4),
+                    "created_at": str(m[3]),
+                }
+                for m in metrics
+            ],
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
