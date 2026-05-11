@@ -7,7 +7,7 @@ from langchain.agents import AgentExecutor, create_react_agent
 from langchain.tools import tool
 from langchain.prompts import PromptTemplate
 
-# Initialize Groq LLM with higher rate limit model
+# Initialize Groq LLM
 llm = ChatGroq(
     api_key=os.environ.get("GROQ_API_KEY"),
     model_name="llama-3.3-70b-versatile",
@@ -23,9 +23,6 @@ def get_db_connection():
         password=os.environ.get("POSTGRES_PASSWORD", "student_ai_pass"),
         database=os.environ.get("POSTGRES_DB", "student_ai_db"),
     )
-
-
-# ---- TOOLS ----
 
 
 @tool
@@ -79,7 +76,7 @@ def get_at_risk_students(threshold: str = "0.5") -> str:
 @tool
 def get_student_details(student_name: str) -> str:
     """Get detailed information about a specific student.
-    Pass just the name without quotes, e.g: Sophia Thomas"""
+    Pass just the name e.g: Sophia Thomas"""
     try:
         conn = get_db_connection()
         cur = conn.cursor()
@@ -169,16 +166,24 @@ def get_cohort_summary(cohort_name: str = "all") -> str:
 
 
 @tool
-def create_intervention(student_name: str, issues: str) -> str:
+def create_intervention(input_str: str) -> str:
     """Create and save a personalized intervention alert for a student.
-    Pass the student name and a brief description of their issues."""
+    Input format: 'student_name|issues' e.g. 'Harper Clark|no logins, missed assignments'
+    """
     try:
+        parts = input_str.split("|")
+        if len(parts) < 2:
+            student_name = parts[0].strip()
+            issues = "poor engagement and low performance"
+        else:
+            student_name = parts[0].strip()
+            issues = parts[1].strip()
+
         conn = get_db_connection()
         cur = conn.cursor()
 
         cur.execute(
-            "SELECT id FROM students WHERE name ILIKE %s",
-            (f"%{student_name.strip()}%",),
+            "SELECT id FROM students WHERE name ILIKE %s", (f"%{student_name}%",)
         )
         student = cur.fetchone()
         if not student:
@@ -285,6 +290,13 @@ prompt = PromptTemplate.from_template("""You are an AI academic monitoring agent
 Your job is to monitor student performance and create interventions for at-risk students.
 Be concise and efficient - use minimum tool calls needed.
 
+IMPORTANT tool input formats:
+- get_at_risk_students: pass threshold as string e.g. "0.5"
+- get_student_details: pass just the name e.g. "Sophia Thomas"
+- get_cohort_summary: pass "all" or cohort name
+- create_intervention: pass "student_name|issues" e.g. "Harper Clark|no logins, missed 3 assignments"
+- get_forum_sentiment: pass number as string e.g. "5"
+
 You have access to these tools:
 {tools}
 
@@ -292,7 +304,7 @@ Use this format:
 Question: the input question
 Thought: think about what to do
 Action: tool name from [{tool_names}]
-Action Input: input for the tool (just the value, no quotes or variable names)
+Action Input: input for the tool
 Observation: tool result
 Thought: next thought
 Final Answer: your conclusion
