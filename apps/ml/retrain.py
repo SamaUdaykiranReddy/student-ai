@@ -19,13 +19,14 @@ conn = psycopg2.connect(
     port=os.environ.get("POSTGRES_PORT", 5432),
     user=os.environ.get("POSTGRES_USER", "student_ai"),
     password=os.environ.get("POSTGRES_PASSWORD", "student_ai_pass"),
-    database=os.environ.get("POSTGRES_DB", "student_ai_db")
+    database=os.environ.get("POSTGRES_DB", "student_ai_db"),
 )
 
 print("Connected to PostgreSQL")
 
 # Fetch engagement data
-eng_df = pd.read_sql("""
+eng_df = pd.read_sql(
+    """
     SELECT student_id,
            AVG(login_count) as avg_logins,
            AVG(forum_posts) as avg_forum_posts,
@@ -35,10 +36,13 @@ eng_df = pd.read_sql("""
            MAX(login_count) - MIN(login_count) as login_trend
     FROM engagement
     GROUP BY student_id
-""", conn)
+""",
+    conn,
+)
 
 # Fetch assessment data
-asm_df = pd.read_sql("""
+asm_df = pd.read_sql(
+    """
     SELECT student_id,
            AVG(score) as avg_score,
            MIN(score) as min_score,
@@ -46,13 +50,18 @@ asm_df = pd.read_sql("""
            AVG(CASE WHEN submitted = true THEN 1.0 ELSE 0.0 END) as submission_rate
     FROM assessments
     GROUP BY student_id
-""", conn)
+""",
+    conn,
+)
 
 # Fetch student demographics
-students_df = pd.read_sql("""
+students_df = pd.read_sql(
+    """
     SELECT id as student_id, gender, disability
     FROM students
-""", conn)
+""",
+    conn,
+)
 
 conn.close()
 
@@ -71,16 +80,26 @@ df["edu_enc"] = 0  # default since we don't have highest_education in new schema
 
 # Compute at_risk label from real data
 df["at_risk"] = (
-    (df["avg_logins"] < 3) * 0.3 +
-    (df["avg_score"] < 50) * 0.4 +
-    (df["missed_assignments"] >= 2) * 0.3
+    (df["avg_logins"] < 3) * 0.3
+    + (df["avg_score"] < 50) * 0.4
+    + (df["missed_assignments"] >= 2) * 0.3
 ) >= 0.5
 
 feature_cols = [
-    "avg_logins", "avg_forum_posts", "avg_video_minutes", "avg_submissions",
-    "total_logins", "login_trend", "avg_score", "min_score",
-    "missed_assignments", "submission_rate",
-    "gender_enc", "disability_enc", "age_enc", "edu_enc"
+    "avg_logins",
+    "avg_forum_posts",
+    "avg_video_minutes",
+    "avg_submissions",
+    "total_logins",
+    "login_trend",
+    "avg_score",
+    "min_score",
+    "missed_assignments",
+    "submission_rate",
+    "gender_enc",
+    "disability_enc",
+    "age_enc",
+    "edu_enc",
 ]
 
 X = df[feature_cols].fillna(0)
@@ -98,7 +117,9 @@ if y.nunique() < 2:
     print("All students have same label, skipping retraining.")
     exit(0)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
 print(f"Training on {len(X_train)}, testing on {len(X_test)}")
 
@@ -109,9 +130,11 @@ with mlflow.start_run():
         n_estimators=100,
         max_depth=4,
         learning_rate=0.1,
-        scale_pos_weight=max(1, len(y_train[y_train==0]) / max(1, len(y_train[y_train==1]))),
+        scale_pos_weight=max(
+            1, len(y_train[y_train == 0]) / max(1, len(y_train[y_train == 1]))
+        ),
         random_state=42,
-        eval_metric="logloss"
+        eval_metric="logloss",
     )
     model.fit(X_train, y_train)
 
@@ -138,3 +161,27 @@ with mlflow.start_run():
         pickle.dump(feature_cols, f)
 
     print(f"[{datetime.now()}] Retraining complete! Model saved.")
+
+# Save metrics to PostgreSQL for drift detection
+try:
+    metrics_conn = psycopg2.connect(
+        host=os.environ.get("POSTGRES_HOST", "localhost"),
+        port=os.environ.get("POSTGRES_PORT", 5432),
+        user=os.environ.get("POSTGRES_USER", "student_ai"),
+        password=os.environ.get("POSTGRES_PASSWORD", "student_ai_pass"),
+        database=os.environ.get("POSTGRES_DB", "student_ai_db"),
+    )
+    metrics_cur = metrics_conn.cursor()
+    metrics_cur.execute(
+        """
+        INSERT INTO model_metrics (auc_score, data_size, at_risk_rate)
+        VALUES (%s, %s, %s)
+    """,
+        (auc, len(X), float(y.mean())),
+    )
+    metrics_conn.commit()
+    metrics_cur.close()
+    metrics_conn.close()
+    print(f"Metrics saved: AUC={auc:.4f}, data_size={len(X)}")
+except Exception as e:
+    print(f"Failed to save metrics: {e}")

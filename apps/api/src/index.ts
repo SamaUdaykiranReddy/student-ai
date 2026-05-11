@@ -15,6 +15,7 @@ import videoRoutes from "./routes/videos.js";
 import assignmentRoutes from "./routes/assignments.js";
 import chatRoutes from "./routes/chat.js";
 import alertRoutes from "./routes/alerts.js";
+import modelRoutes from "./routes/model.js";
 
 dotenv.config({ path: "../../.env" });
 
@@ -38,6 +39,7 @@ app.use("/api/videos", videoRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/alerts", alertRoutes);
+app.use("/api/model", modelRoutes);
 app.get("/health", (req, res) => {
   res.json({
     status: "ok",
