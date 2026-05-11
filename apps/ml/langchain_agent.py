@@ -9,9 +9,7 @@ from langchain.prompts import PromptTemplate
 
 # Initialize Groq LLM
 llm = ChatGroq(
-    api_key=os.environ.get("GROQ_API_KEY"),
-    model_name="llama-3.3-70b-versatile",
-    temperature=0.3,
+    api_key=os.environ.get("GROQ_API_KEY"), model_name="gemma2-9b-it", temperature=0.3
 )
 
 
