@@ -6,7 +6,11 @@ import numpy as np
 import uvicorn
 import subprocess
 import threading
+import os
+import psycopg2
 from rag import upsert_document, answer_question
+from langchain_agent import run_langchain_agent
+from drift_detector import check_drift as run_drift_check
 
 app = FastAPI(title="Student Risk ML Service")
 
@@ -42,6 +46,25 @@ class StudentFeatures(BaseModel):
     edu_enc: int
 
 
+class ChatRequest(BaseModel):
+    question: str
+    student_id: str = ""
+    risk_score: float = 0.0
+    avg_score: float = 0.0
+    missed_assignments: int = 0
+
+
+class IngestRequest(BaseModel):
+    doc_id: str
+    title: str
+    content: str
+    doc_type: str = "course_material"
+
+
+class AgentRequest(BaseModel):
+    query: str = ""
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "message": "ML service is running"}
@@ -51,23 +74,18 @@ def health():
 def predict(features: StudentFeatures):
     data = pd.DataFrame([features.model_dump()])
     data = data[feature_cols].fillna(0)
-
     risk_score = float(model.predict_proba(data)[0][1])
     prediction = int(model.predict(data)[0])
-
     shap_values = explainer.shap_values(data)[0]
     shap_factors = sorted(
         zip(feature_cols, shap_values), key=lambda x: abs(x[1]), reverse=True
     )[:3]
-
     top_factors = [
         {"feature": f, "impact": round(float(v), 4)} for f, v in shap_factors
     ]
-
     risk_label = (
         "high" if risk_score >= 0.7 else "medium" if risk_score >= 0.4 else "low"
     )
-
     return {
         "risk_score": round(risk_score, 4),
         "risk_label": risk_label,
@@ -101,21 +119,6 @@ def model_status():
         return {"status": "error", "error": str(e)}
 
 
-class ChatRequest(BaseModel):
-    question: str
-    student_id: str = ""
-    risk_score: float = 0.0
-    avg_score: float = 0.0
-    missed_assignments: int = 0
-
-
-class IngestRequest(BaseModel):
-    doc_id: str
-    title: str
-    content: str
-    doc_type: str = "course_material"
-
-
 @app.post("/chat")
 def chat(request: ChatRequest):
     try:
@@ -146,13 +149,6 @@ def ingest(request: IngestRequest):
         return {"error": str(e)}
 
 
-from langchain_agent import run_langchain_agent
-
-
-class AgentRequest(BaseModel):
-    query: str = ""
-
-
 @app.post("/agent")
 def run_agent_endpoint(request: AgentRequest = AgentRequest()):
     try:
@@ -162,16 +158,10 @@ def run_agent_endpoint(request: AgentRequest = AgentRequest()):
         return {"error": str(e), "status": "error"}
 
 
-from drift_detector import check_drift as run_drift_check
-
-
 @app.get("/drift")
 def check_drift():
     try:
         run_drift_check()
-
-        import psycopg2
-
         conn = psycopg2.connect(
             host=os.environ.get("POSTGRES_HOST", "localhost"),
             port=int(os.environ.get("POSTGRES_PORT", 5432)),
@@ -189,7 +179,6 @@ def check_drift():
         metrics = cur.fetchall()
         cur.close()
         conn.close()
-
         return {
             "status": "ok",
             "metrics": [
