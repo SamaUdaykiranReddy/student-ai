@@ -23,7 +23,7 @@ export default function AgentChat() {
   const suggestions = [
     "Who are the most at-risk students?",
     "Which cohort is struggling most?",
-    "Create interventions for at-risk students",
+    "Create an intervention for Harper Clark",
     "Analyze forum sentiment",
   ];
 

@@ -314,16 +314,14 @@ Thought:{agent_scratchpad}""")
 
 agent = create_react_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(
-    agent=agent, tools=tools, verbose=True, max_iterations=5, handle_parsing_errors=True
+    agent=agent, tools=tools, verbose=True, max_iterations=8, handle_parsing_errors=True
 )
 
 
 def run_langchain_agent(query: str = None) -> str:
     """Run the LangChain agent with a query"""
     if not query:
-        query = (
-            "Find the top 3 most at-risk students and create interventions for them."
-        )
+        query = "Get the list of at-risk students and summarize who needs help most."
 
     try:
         result = agent_executor.invoke({"input": query})
