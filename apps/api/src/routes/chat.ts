@@ -38,5 +38,25 @@ router.post("/", async (req: Request, res: Response) => {
     res.status(500).json({ error: "Chat service unavailable" });
   }
 });
+// Instructor agent query
+router.post("/agent", async (req: Request, res: Response) => {
+  const user = getUser(req);
+  if (!user || user.role !== "instructor") { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const { query } = req.body;
+
+  try {
+    const mlRes = await fetch(`${process.env.ML_SERVICE_URL}/agent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: query || "" }),
+    });
+    const data = await mlRes.json();
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Agent service unavailable" });
+  }
+});
 
 export default router;
