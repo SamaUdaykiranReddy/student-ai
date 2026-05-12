@@ -124,12 +124,11 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     // Alert if distressed
+    // Alert if distressed
     if (sentiment === "distressed" || score > 0.8) {
       await pool.query(
-        `
-    INSERT INTO alerts (student_id, alert_type, message, study_plan)
-    VALUES ($1, 'sentiment_alert', $2, $3)
-  `,
+        `INSERT INTO alerts (student_id, alert_type, message, study_plan)
+     VALUES ($1, 'sentiment_alert', $2, $3)`,
         [
           studentId,
           `Student posted a concerning message: "${title}"`,
@@ -137,12 +136,21 @@ router.post("/", async (req: Request, res: Response) => {
         ],
       );
 
-      // Send email notification
-      const studentResult = await pool.query(
-        "SELECT name FROM students WHERE id = $1",
+      // Get student's assigned instructor email
+      const studentWithInstructor = await pool.query(
+        `
+    SELECT s.name, i.email as instructor_email
+    FROM students s
+    LEFT JOIN instructors i ON s.instructor_id = i.id
+    WHERE s.id = $1
+  `,
         [studentId],
       );
-      await sendSentimentAlert(studentResult.rows[0].name, title);
+
+      const row = studentWithInstructor.rows[0];
+      const instructorEmail =
+        row?.instructor_email || process.env.INSTRUCTOR_EMAIL;
+      await sendSentimentAlert(row.name, title, instructorEmail);
     }
     res.status(201).json({ post: result.rows[0] });
   } catch (err) {

@@ -4,19 +4,21 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY || "");
 
 const FROM_EMAIL = "noreply@student-ai.com";
 const INSTRUCTOR_EMAIL = process.env.INSTRUCTOR_EMAIL || "";
-
 export async function sendAlertEmail(
   subject: string,
   body: string,
+  toEmail?: string,
 ): Promise<void> {
-  if (!INSTRUCTOR_EMAIL || !process.env.SENDGRID_API_KEY) {
+  const recipient = toEmail || INSTRUCTOR_EMAIL;
+
+  if (!recipient || !process.env.SENDGRID_API_KEY) {
     console.log("Email not configured, skipping:", subject);
     return;
   }
 
   try {
     await sgMail.send({
-      to: INSTRUCTOR_EMAIL,
+      to: recipient,
       from: FROM_EMAIL,
       subject,
       html: `
@@ -35,7 +37,7 @@ export async function sendAlertEmail(
         </div>
       `,
     });
-    console.log(`Email sent: ${subject}`);
+    console.log(`Email sent to ${recipient}: ${subject}`);
   } catch (err) {
     console.error("Email error:", err);
   }
@@ -100,7 +102,15 @@ export async function sendDriftAlert(
 export async function sendSentimentAlert(
   studentName: string,
   postTitle: string,
+  instructorEmail?: string,
 ): Promise<void> {
+  const toEmail = instructorEmail || INSTRUCTOR_EMAIL;
+
+  if (!toEmail || !process.env.SENDGRID_API_KEY) {
+    console.log("Email not configured, skipping:", studentName);
+    return;
+  }
+
   const subject = `😟 Distressed Student Detected: ${studentName}`;
   const body = `
     <h2 style="color: #dc2626;">Student Wellbeing Alert</h2>
@@ -113,5 +123,5 @@ export async function sendSentimentAlert(
       View Student Dashboard
     </a>
   `;
-  await sendAlertEmail(subject, body);
+  await sendAlertEmail(subject, body, toEmail);
 }
