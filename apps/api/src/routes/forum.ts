@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import pool from "../db.js";
 import jwt from "jsonwebtoken";
 import { analyzeSentiment } from "../lib/sentiment.js";
+import { sendSentimentAlert } from "../lib/email.js";
 
 const router = Router();
 
@@ -126,17 +127,23 @@ router.post("/", async (req: Request, res: Response) => {
     if (sentiment === "distressed" || score > 0.8) {
       await pool.query(
         `
-        INSERT INTO alerts (student_id, alert_type, message, study_plan)
-        VALUES ($1, 'sentiment_alert', $2, $3)
-      `,
+    INSERT INTO alerts (student_id, alert_type, message, study_plan)
+    VALUES ($1, 'sentiment_alert', $2, $3)
+  `,
         [
           studentId,
           `Student posted a concerning message: "${title}"`,
           "Consider reaching out to this student immediately to check on their wellbeing.",
         ],
       );
-    }
 
+      // Send email notification
+      const studentResult = await pool.query(
+        "SELECT name FROM students WHERE id = $1",
+        [studentId],
+      );
+      await sendSentimentAlert(studentResult.rows[0].name, title);
+    }
     res.status(201).json({ post: result.rows[0] });
   } catch (err) {
     console.error(err);

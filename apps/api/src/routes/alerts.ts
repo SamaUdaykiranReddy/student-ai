@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import pool from "../db.js";
 import jwt from "jsonwebtoken";
+import { sendAtRiskAlert, sendDriftAlert } from "../lib/email.js";
 
 const router = Router();
 
@@ -82,6 +83,35 @@ router.patch("/:id/read", async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to update alert" });
+  }
+});
+// Called by ML service when creating alerts
+router.post("/", async (req: Request, res: Response) => {
+  const { student_id, alert_type, message, study_plan, student_name } =
+    req.body;
+
+  try {
+    const result = await pool.query(
+      `
+      INSERT INTO alerts (student_id, alert_type, message, study_plan)
+      VALUES ($1, $2, $3, $4) RETURNING *
+    `,
+      [student_id, alert_type, message, study_plan],
+    );
+
+    // Send email notification
+    if (alert_type !== "model_drift") {
+      await sendAtRiskAlert(
+        student_name || "Unknown Student",
+        message,
+        study_plan || "Please check the dashboard for details.",
+      );
+    }
+
+    res.status(201).json({ alert: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create alert" });
   }
 });
 
