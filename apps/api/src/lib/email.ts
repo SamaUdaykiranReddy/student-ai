@@ -2,7 +2,7 @@ import sgMail from "@sendgrid/mail";
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || "");
 
-const FROM_EMAIL = "noreply@student-ai.com";
+const FROM_EMAIL = "udaykiran333381@gmail.com";
 const INSTRUCTOR_EMAIL = process.env.INSTRUCTOR_EMAIL || "";
 export async function sendAlertEmail(
   subject: string,
